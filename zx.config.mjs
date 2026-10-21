@@ -12,7 +12,7 @@ export const repoDir = 'zx'
  */
 export async function init({ rootDir }) {
   const targetDir = path.resolve(rootDir, repoDir)
-  if (!existsSync(targetDir) && !existsSync(path.join(rootDir, '.git'))) {
+  if (!existsSync(targetDir)) {
     echo(chalk.blue(`Cloning ${repoUrl}...`))
     await $`git clone ${repoUrl} ${targetDir}`
   }

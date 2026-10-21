@@ -251,7 +251,7 @@ if (typeof config.init === 'function') {
   baseCommit = initResult?.baseCommit ?? ''
 } else {
   const targetDir = config.repoDir ? path.resolve(ROOT_DIR, config.repoDir) : ROOT_DIR
-  if (config.repoUrl && !existsSync(targetDir) && !existsSync(path.join(ROOT_DIR, '.git'))) {
+  if (config.repoUrl && !existsSync(targetDir)) {
     echo(chalk.blue(`Cloning ${config.repoUrl}...`))
     await $`git clone ${config.repoUrl} ${targetDir}`
   }
