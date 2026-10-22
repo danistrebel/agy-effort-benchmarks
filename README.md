@@ -58,6 +58,64 @@ Each benchmark run creates a timestamped directory under `benchmark-runs/YYYYMMD
 - `agy_<scenario>_<model>_run<N>.log`: Debug log from the `agy` invocation.
 - `transcript_<scenario>_<model>_run<N>.jsonl`: Copy of the full conversation transcript for the run.
 
+## Architecture & Evaluation Workflow
+
+The diagram below illustrates how [benchmark.mjs](./benchmark.mjs) executes benchmark evaluations across scenarios, models, and effort tiers, and how the results are aggregated into charts via [generate_eval_charts.py](./.agents/skills/eval-charts/scripts/generate_eval_charts.py) and the [altair-charts](./.agents/skills/altair-charts/SKILL.md) toolkit:
+
+```mermaid
+graph TD
+    subgraph "1 - Initialization and Setup"
+        CLI[Parse CLI Arguments]
+        CFG[Load Config and Pricing]
+        DIR[Create Run Directory]
+        INIT[Initialize Target Workspace]
+        CLI --> CFG
+        CFG --> DIR
+        DIR --> INIT
+    end
+
+    subgraph "2 - Evaluation Loop"
+        RESET[Reset Workspace to Baseline]
+        AGY[Invoke Antigravity CLI]
+        LOG[Extract Conversation ID from Log]
+        TRANS[Copy and Parse Transcript]
+        VAL[Validate Outcome and Compute Cost]
+        REC[Append Record to results.jsonl]
+        RESET --> AGY
+        AGY --> LOG
+        LOG --> TRANS
+        TRANS --> VAL
+        VAL --> REC
+    end
+
+    subgraph "3 - Aggregation and Diagram Generation"
+        EVAL[Run generate_eval_charts.py]
+        AGG[Average Across Repetitions]
+        SUM[Export Summary CSV and JSON]
+        ALTAIR[Render Charts via altair-charts]
+        CHARTS[Output PNG, SVG, and HTML Diagrams]
+        EVAL --> AGG
+        AGG --> SUM
+        AGG --> ALTAIR
+        ALTAIR --> CHARTS
+    end
+
+    INIT --> RESET
+    REC -->|Next Run| RESET
+    REC -->|All Runs Complete| EVAL
+```
+
+### Generating Evaluation Diagrams
+
+After a benchmark run completes, generate summary tables and evaluation charts from `results.jsonl` using [generate_eval_charts.py](./.agents/skills/eval-charts/scripts/generate_eval_charts.py):
+
+```bash
+.venv/bin/python .agents/skills/eval-charts/scripts/generate_eval_charts.py \
+  --input benchmark-runs/<YYYYMMDDHHMM>/results.jsonl \
+  --output-dir benchmark-runs/<YYYYMMDDHHMM>/charts \
+  --metrics all
+```
+
 ## Custom Configurations
 
 To benchmark against a different repository or set of tasks, create a configuration `.mjs` file and pass it via `--config`. See [zx.config.mjs](./zx.config.mjs) for an example defining `init`, `reset`, and `scenarios` (each with an `id`, `name`, `prompt`, and async `validator` function).

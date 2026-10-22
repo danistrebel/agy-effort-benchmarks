@@ -1,0 +1,25 @@
+{
+  "last_updated": "2026-10-14",
+  "pricing_url": "https://cloud.google.com/vertex-ai/generative-ai/pricing",
+  "unit": "USD per 1M tokens",
+  "models": {
+    "gemini-4-argon": {
+      "input": 2.00,
+      "cached_input": 0.10,
+      "output": 10.00,
+      "comment": "Introductory pricing ($4.00 input, $0.20 cached, $20.00 output post-introductory)"
+    },
+    "gemini-3.8-flash": {
+      "input": 0.75,
+      "cached_input": 0.075,
+      "output": 3.75,
+      "comment": "Promotional pricing until December 31, 2026"
+    },
+    "gemini-3.1-pro": {
+      "input": 2.00,
+      "cached_input": 0.20,
+      "output": 12.00,
+      "comment": "Standard pricing for prompt context <= 200k tokens"
+    }
+  }
+}

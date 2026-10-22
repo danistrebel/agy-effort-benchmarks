@@ -1,3 +1,4 @@
 zx/
 benchmark-runs/
 .venv/
+__pycache__

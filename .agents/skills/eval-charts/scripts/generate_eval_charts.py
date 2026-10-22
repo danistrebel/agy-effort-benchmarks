@@ -128,6 +128,47 @@ def format_model_display(base_model: str, custom_labels: Optional[Dict[str, str]
     return " ".join(part.capitalize() for part in str(base_model).split("-") if part)
 
 
+def load_pricing_models() -> Dict[str, Dict[str, float]]:
+    """Load model token pricing from `api_list_prices.json` if present."""
+    candidates = [
+        Path.cwd() / "api_list_prices.json",
+        Path(__file__).resolve().parents[4] / "api_list_prices.json",
+    ]
+    for p in candidates:
+        if p.is_file():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                return data.get("models", {}) or {}
+            except Exception:
+                pass
+    return {}
+
+
+def compute_fallback_cost(
+    raw_model: str,
+    base_model: str,
+    input_tokens: float,
+    cache_read_tokens: float,
+    output_tokens: float,
+    pricing_models: Dict[str, Dict[str, float]],
+) -> float:
+    """Compute USD cost from token counts using `api_list_prices.json` when `cost_usd` is missing."""
+    if not pricing_models:
+        return 0.0
+    p = pricing_models.get(raw_model) or pricing_models.get(base_model)
+    if not p:
+        for k, v in pricing_models.items():
+            if raw_model.startswith(k) or base_model.startswith(k):
+                p = v
+                break
+    if not p:
+        return 0.0
+    in_cost = (float(input_tokens or 0.0) / 1_000_000.0) * float(p.get("input", 0.0))
+    cache_cost = (float(cache_read_tokens or 0.0) / 1_000_000.0) * float(p.get("cached_input", 0.0))
+    out_cost = (float(output_tokens or 0.0) / 1_000_000.0) * float(p.get("output", 0.0))
+    return round(in_cost + cache_cost + out_cost, 6)
+
+
 def load_and_aggregate(
     inputs: Sequence[str],
     task_col: str = "case_id",
@@ -141,6 +182,7 @@ def load_and_aggregate(
     """
     records = []
     discovered_tools = set()
+    pricing_models = load_pricing_models()
 
     for inp in inputs:
         p = Path(inp)
@@ -176,6 +218,17 @@ def load_and_aggregate(
                 rec["effort"] = effort
                 rec["effort_display"] = humanize_identifier(effort)
                 rec["effort_order"] = EFFORT_RANK.get(effort, 99)
+
+                raw_cost = rec.get("cost_usd")
+                if raw_cost is None or pd.isna(raw_cost) or float(raw_cost or 0.0) <= 0.0:
+                    rec["cost_usd"] = compute_fallback_cost(
+                        raw_model=raw_model,
+                        base_model=base_model,
+                        input_tokens=rec.get("input_tokens", 0.0),
+                        cache_read_tokens=rec.get("cache_read_tokens", 0.0),
+                        output_tokens=rec.get("output_tokens", 0.0),
+                        pricing_models=pricing_models,
+                    )
 
                 tool_calls = rec.get("tool_calls")
                 if isinstance(tool_calls, dict):
